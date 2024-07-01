@@ -1,19 +1,16 @@
-﻿
-using System;
+﻿using System;
+using System.Collections.Generic;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.IO;
-using Telegram.Bot.Types.Enums;
 
 namespace BOT
 {
     internal class Program
     {
-        static int score = 50;
+        private static Dictionary<long, int> playerScores = new Dictionary<long, int>();
 
         static void Main(string[] args)
         {
@@ -25,11 +22,16 @@ namespace BOT
         static async Task Update(ITelegramBotClient client, Update update, CancellationToken token)
         {
             var message = update.Message;
-            if (message != null)
-            {
-                var chatName = message.Chat.FirstName;
+            if (message != null && message.Text != null)
+                {
                 var chatId = message.Chat.Id;
-                Console.WriteLine($"{message.Chat.FirstName} | {message.Text}");
+                var chatName = message.Chat.FirstName;
+                Console.WriteLine($"{chatName} | {message.Text}");
+
+                if (!playerScores.ContainsKey(chatId))
+                {
+                    playerScores[chatId] = 50; 
+                }
 
                 if (message.Text.ToLower().Contains("/start"))
                 {
@@ -47,13 +49,16 @@ namespace BOT
                 {
                     await PlayPaper(client, chatId);
                 }
-                else await Unknown(client, chatId, chatName);
+                else
+                {
+                    await Unknown(client, chatId, chatName);
+                }
             }
         }
 
-        static async Task StartGame(ITelegramBotClient client, long chatId, string chatname)
+        static async Task StartGame(ITelegramBotClient client, long chatId, string chatName)
         {
-            await client.SendTextMessageAsync(chatId, $"Привет {chatname}, ! Давай поиграем?! Выбери Камень: ✊, Ножницы: ✌, или Бумагу: ✋. У тебя {score} очков.", replyMarkup: GetButtons());
+            await client.SendTextMessageAsync(chatId, $"Привет {chatName} ! Давай поиграем?! Выбери Камень: ✊, Ножницы: ✌, или Бумагу: ✋. У тебя {playerScores[chatId]} очков.", replyMarkup: GetButtons());
         }
 
         static async Task PlayRock(ITelegramBotClient client, long chatId)
@@ -96,23 +101,21 @@ namespace BOT
                 await client.SendTextMessageAsync(chatId, "Ничья", replyMarkup: GetButtons());
             else if ((variable == 0 && variable_bot == 1) || (variable == 1 && variable_bot == 2) || (variable == 2 && variable_bot == 0))
             {
-                score += 10;
-                await client.SendTextMessageAsync(chatId, $"Результат: Ты победил! и заработал 10 очков, теперь у тебя {score} очков", replyMarkup: GetButtons());
+                playerScores[chatId] += 10;
+                await client.SendTextMessageAsync(chatId, $"Результат: Ты победил! и заработал 10 очков, теперь у тебя {playerScores[chatId]} очков", replyMarkup: GetButtons());
             }
             else
             {
-                score -= 10;
-                await client.SendTextMessageAsync(chatId, $"Результат: Я победил! и забираю у тебя 10 очков, теперь у тебя {score} очков ", replyMarkup: GetButtons());
+                playerScores[chatId] -= 10;
+                await client.SendTextMessageAsync(chatId, $"Результат: Я победил! и забираю у тебя 10 очков, теперь у тебя {playerScores[chatId]} очков ", replyMarkup: GetButtons());
             }
         }
 
-        static async Task Unknown(ITelegramBotClient client, long chatId, string chatname) 
-        
+        static async Task Unknown(ITelegramBotClient client, long chatId, string chatName)
         {
-
-            await client.SendTextMessageAsync(chatId, $"Неизвестное значение!!! {chatname} Выбери что то из трех вариантов!", replyMarkup: GetButtons());
-
+            await client.SendTextMessageAsync(chatId, $"Неизвестное значение!!! {chatName} Выбери что то из трех вариантов!", replyMarkup: GetButtons());
         }
+
         private static IReplyMarkup GetButtons()
         {
             return new ReplyKeyboardMarkup(new[]
@@ -128,7 +131,7 @@ namespace BOT
 
         private static async Task Error(ITelegramBotClient client, Exception exception, CancellationToken token)
         {
-            //ошибки
+            Console.WriteLine($"Ошибка: {exception.Message}");
         }
     }
 }
